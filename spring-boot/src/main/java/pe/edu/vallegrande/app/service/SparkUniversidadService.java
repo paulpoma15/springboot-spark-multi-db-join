@@ -1,66 +1,77 @@
-package pe.edu.vallegrande.app.service;
+    package pe.edu.vallegrande.app.service;
 
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+    import org.apache.spark.sql.Dataset;
+    import org.apache.spark.sql.Row;
+    import org.apache.spark.sql.SparkSession;
+    import org.apache.spark.sql.types.DataTypes;
+    import org.springframework.beans.factory.annotation.Value;
+    import org.springframework.stereotype.Service;
 
-@Service
-public class SparkUniversidadService {
+    import java.util.ArrayList;
+    import java.util.HashMap;
+    import java.util.List;
+    import java.util.Map;
 
-    private final SparkSession spark;
+    import static org.apache.spark.sql.functions.col;
+    import static org.apache.spark.sql.functions.lower;
+    import static org.apache.spark.sql.functions.trim;
+    import static org.apache.spark.sql.functions.when;
 
-    private final String sqlServerUrl;
-    private final String sqlServerUsername;
-    private final String sqlServerPassword;
-    private final String sqlServerDriver;
+    @Service
+    public class SparkUniversidadService {
 
-    private final String postgresUrl;
-    private final String postgresUsername;
-    private final String postgresPassword;
-    private final String postgresDriver;
+        private final SparkSession spark;
 
-    public SparkUniversidadService(
-            @Value("${app.sqlserver.url}") String sqlServerUrl,
-            @Value("${app.sqlserver.username}") String sqlServerUsername,
-            @Value("${app.sqlserver.password}") String sqlServerPassword,
-            @Value("${app.sqlserver.driver}") String sqlServerDriver,
+        // SQL Server
+        private final String sqlServerUrl;
+        private final String sqlServerUsername;
+        private final String sqlServerPassword;
+        private final String sqlServerDriver;
 
-            @Value("${app.postgres.url}") String postgresUrl,
-            @Value("${app.postgres.username}") String postgresUsername,
-            @Value("${app.postgres.password}") String postgresPassword,
-            @Value("${app.postgres.driver}") String postgresDriver
-    ) {
+        // MariaDB
+        private final String mariaDbUrl;
+        private final String mariaDbUsername;
+        private final String mariaDbPassword;
+        private final String mariaDbDriver;
 
-        this.sqlServerUrl = sqlServerUrl;
-        this.sqlServerUsername = sqlServerUsername;
-        this.sqlServerPassword = sqlServerPassword;
-        this.sqlServerDriver = sqlServerDriver;
+        public SparkUniversidadService(
+                SparkSession spark,
 
-        this.postgresUrl = postgresUrl;
-        this.postgresUsername = postgresUsername;
-        this.postgresPassword = postgresPassword;
-        this.postgresDriver = postgresDriver;
+                @Value("${app.sqlserver.url}") String sqlServerUrl,
+                @Value("${app.sqlserver.username}") String sqlServerUsername,
+                @Value("${app.sqlserver.password}") String sqlServerPassword,
+                @Value("${app.sqlserver.driver}") String sqlServerDriver,
 
-        this.spark = SparkSession.builder()
-                .appName("UniversidadSparkDemo")
-                .master("local[*]")
-                .getOrCreate();
-    }
+                @Value("${app.mariadb.url}") String mariaDbUrl,
+                @Value("${app.mariadb.username}") String mariaDbUsername,
+                @Value("${app.mariadb.password}") String mariaDbPassword,
+                @Value("${app.mariadb.driver}") String mariaDbDriver
+        ) {
 
-    // Método para obtener el resumen de estudiantes y sus matriculas
-    public Dataset<Row> obtenerResumen() {
+            this.spark = spark;
+
+            this.sqlServerUrl = sqlServerUrl;
+            this.sqlServerUsername = sqlServerUsername;
+            this.sqlServerPassword = sqlServerPassword;
+            this.sqlServerDriver = sqlServerDriver;
+
+            this.mariaDbUrl = mariaDbUrl;
+            this.mariaDbUsername = mariaDbUsername;
+            this.mariaDbPassword = mariaDbPassword;
+            this.mariaDbDriver = mariaDbDriver;
+        }
+
+        public Dataset<Row> obtenerResumen() {
 
         Dataset<Row> estudiantes = leerEstudiantes();
-
         Dataset<Row> matriculas = leerMatriculas();
 
+        // Realizar el JOIN directamente por los IDs numéricos
         Dataset<Row> resultado = estudiantes
                 .join(
                         matriculas,
-                        estudiantes.col("id")
-                                .equalTo(matriculas.col("estudiante_id"))
+                        estudiantes.col("id").equalTo(matriculas.col("estudiante_id")),
+                        "left"
                 )
                 .select(
                         estudiantes.col("codigo"),
@@ -70,31 +81,45 @@ public class SparkUniversidadService {
                         matriculas.col("curso"),
                         matriculas.col("nota")
                 );
+
         return resultado;
     }
 
-    //Conexión a SQL Server para leer la tabla de estudiantes
-    private Dataset<Row> leerEstudiantes() {
+        public List<Map<String, Object>> obtenerResumenLista() {
+            Dataset<Row> dataset = obtenerResumen();
+            List<Row> rows = dataset.collectAsList();
+            String[] columnas = dataset.columns();
+
+            List<Map<String, Object>> resultado = new ArrayList<>();
+            for (Row row : rows) {
+                Map<String, Object> fila = new HashMap<>();
+                for (String col : columnas) {
+                    fila.put(col, row.getAs(col));
+                }
+                resultado.add(fila);
+            }
+            return resultado;
+        }
+
+        private Dataset<Row> leerEstudiantes() {
+            return spark.read()
+                    .format("jdbc")
+                    .option("url", sqlServerUrl)
+                    .option("dbtable", "dbo.estudiantes")
+                    .option("user", sqlServerUsername)
+                    .option("password", sqlServerPassword)
+                    .option("driver", sqlServerDriver)
+                    .load();
+        }
+
+        private Dataset<Row> leerMatriculas() {
         return spark.read()
                 .format("jdbc")
-                .option("url", sqlServerUrl)
-                .option("dbtable", "dbo.estudiantes")
-                .option("user", sqlServerUsername)
-                .option("password", sqlServerPassword)
-                .option("driver", this.sqlServerDriver)
+                .option("url", mariaDbUrl)
+                .option("dbtable", "matriculas") // Lee directamente la tabla
+                .option("user", mariaDbUsername)
+                .option("password", mariaDbPassword)
+                .option("driver", mariaDbDriver)
                 .load();
     }
-
-    //Conexión a PostgreSQL para leer la tabla de matriculas
-    private Dataset<Row> leerMatriculas() {
-        return spark.read()
-                .format("jdbc")
-                .option("url", postgresUrl)
-                .option("dbtable", "public.matriculas")
-                .option("user", postgresUsername)
-                .option("password", postgresPassword)
-                .option("driver", this.postgresDriver)
-                .load();
     }
-
-}
