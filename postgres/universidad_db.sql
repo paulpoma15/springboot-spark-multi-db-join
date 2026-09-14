@@ -1,25 +1,19 @@
-CREATE DATABASE universidad_db;
-
-SELECT current_database();
-
-CREATE TABLE matriculas (
-    id SERIAL PRIMARY KEY,
-    estudiante_id INT NOT NULL,
-    curso VARCHAR(100) NOT NULL,
-    creditos INT NOT NULL,
-    semestre INT NOT NULL,
-    nota DECIMAL(4,2) NOT NULL
+-- BD 3: POSTGRESQL (Matrículas)
+CREATE TABLE IF NOT EXISTS matricula (
+    id_matricula SERIAL PRIMARY KEY,
+    id_estudiante INT NOT NULL,
+    id_carrera INT NOT NULL,
+    periodo_academico VARCHAR(10) NOT NULL,
+    fecha_matricula DATE NOT NULL
 );
 
-INSERT INTO matriculas
-    (estudiante_id, curso, creditos, semestre, nota)
-VALUES
-    (1, 'Java', 4, 5, 18),
-    (1, 'Bases de Datos', 4, 5, 16),
-    (2, 'Java', 4, 6, 15),
-    (2, 'Docker', 3, 6, 17),
-    (3, 'Java', 4, 4, 14),
-    (3, 'Spark', 4, 4, 18),
-    (4, 'Redes', 4, 7, 19);
+TRUNCATE TABLE matricula RESTART IDENTITY;
 
-SELECT * FROM matriculas;
+INSERT INTO matricula (id_estudiante, id_carrera, periodo_academico, fecha_matricula) VALUES
+(1, 1, '2026-I', '2026-03-01'),
+(2, 2, '2026-I', '2026-03-02'),
+(3, 3, '2026-I', '2026-03-03'),
+(4, 4, '2026-I', '2026-03-04'),
+(5, 5, '2026-I', '2026-03-05');
+
+SELECT * FROM matricula;
