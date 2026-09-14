@@ -1,23 +1,32 @@
+-- BD 2: SQL SERVER (Carreras)
+USE master;
+GO
+
+IF EXISTS (SELECT name FROM sys.databases WHERE name = 'universidad_db')
+BEGIN
+    ALTER DATABASE universidad_db SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE universidad_db;
+END;
+GO
+
 CREATE DATABASE universidad_db;
+GO
 
 USE universidad_db;
+GO
 
-CREATE TABLE estudiantes (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    codigo VARCHAR(20) NOT NULL,
-    nombre VARCHAR(100) NOT NULL,
-    apellido VARCHAR(100) NOT NULL,
-    carrera VARCHAR(100) NOT NULL,
-    semestre INT NOT NULL
+CREATE TABLE carrera_universidad (
+    id_carrera INT IDENTITY(1,1) PRIMARY KEY,
+    nombre_carrera VARCHAR(100) NOT NULL,
+    facultad VARCHAR(100) NOT NULL,
+    duracion_semestres INT NOT NULL
 );
 
-INSERT INTO estudiantes
-    (codigo, nombre, apellido, carrera, semestre)
-VALUES
-    ('E001', 'Juan', 'Perez', 'Ingeniería de Sistemas', 5),
-    ('E002', 'Ana', 'Lopez', 'Ingeniería de Software', 6),
-    ('E003', 'Pedro', 'Torres', 'Ingeniería de Sistemas', 4),
-    ('E004', 'Maria', 'Quispe', 'Ingeniería de Redes', 7);
+INSERT INTO carrera_universidad (nombre_carrera, facultad, duracion_semestres) VALUES
+('Ingeniería de Sistemas', 'Ingeniería', 10),
+('Diseño Gráfico', 'Arte y Diseño', 6),
+('Administración de Empresas', 'Ciencias Empresariales', 10),
+('Marketing Digital', 'Ciencias Empresariales', 8),
+('Redes y Seguridad', 'Ingeniería', 6);
 
-SELECT * FROM estudiantes;
-
+SELECT * FROM carrera_universidad;
